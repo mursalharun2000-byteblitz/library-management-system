@@ -1,70 +1,61 @@
-import { PrismaClient, Role } from '@prisma/client';
-
+import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding database...');
-
-  // Clean database to prevent unique constraint conflicts on re-runs
-  await prisma.review.deleteMany();
+  // Clear existing data to prevent unique constraint errors on re-seed
   await prisma.book.deleteMany();
   await prisma.genre.deleteMany();
   await prisma.user.deleteMany();
 
-  // 1. Create Genres (4+ required)
-  const fiction = await prisma.genre.create({ data: { name: 'Fiction' } });
-  const sciFi = await prisma.genre.create({ data: { name: 'Science Fiction' } });
-  const fantasy = await prisma.genre.create({ data: { name: 'Fantasy' } });
-  const mystery = await prisma.genre.create({ data: { name: 'Mystery' } });
+  const genreNames = ["Fantasy", "Science Fiction", "Mystery", "Biography"];
+  const genres = await Promise.all(
+    genreNames.map((name) =>
+      prisma.genre.create({
+        data: { name, slug: name.toLowerCase().replace(/\s+/g, "-") },
+      }),
+    ),
+  );
 
-  // Create a sample user for the review stretch relation
-  await prisma.user.create({
-    data: {
-      email: 'librarian@library.com',
-      name: 'Head Librarian',
-      role: Role.LIBRARIAN,
-    },
-  });
-
-  // 2. Create Books (15+ required distributed across genres)
-  const booksData = [
-    // Fiction
-    { title: 'To Kill a Mockingbird', author: 'Harper Lee', publishedYear: 1960, genreId: fiction.id },
-    { title: '1984', author: 'George Orwell', publishedYear: 1949, genreId: fiction.id },
-    { title: 'The Great Gatsby', author: 'F. Scott Fitzgerald', publishedYear: 1925, genreId: fiction.id },
-    { title: 'Pride and Prejudice', author: 'Jane Austen', publishedYear: 1813, genreId: fiction.id },
-    
-    // Science Fiction
-    { title: 'Dune', author: 'Frank Herbert', publishedYear: 1965, genreId: sciFi.id },
-    { title: 'Ender\'s Game', author: 'Orson Scott Card', publishedYear: 1985, genreId: sciFi.id },
-    { title: 'Neuromancer', author: 'William Gibson', publishedYear: 1984, genreId: sciFi.id },
-    { title: 'The Martian', author: 'Andy Weir', publishedYear: 2011, genreId: sciFi.id },
-    
-    // Fantasy
-    { title: 'The Hobbit', author: 'J.R.R. Tolkien', publishedYear: 1937, genreId: fantasy.id },
-    { title: 'Harry Potter and the Sorcerer\'s Stone', author: 'J.K. Rowling', publishedYear: 1997, genreId: fantasy.id },
-    { title: 'The Name of the Wind', author: 'Patrick Rothfuss', publishedYear: 2007, genreId: fantasy.id },
-    { title: 'Mistborn: The Final Empire', author: 'Brandon Sanderson', publishedYear: 2006, genreId: fantasy.id },
-    
-    // Mystery
-    { title: 'The Da Vinci Code', author: 'Dan Brown', publishedYear: 2003, genreId: mystery.id },
-    { title: 'Gone Girl', author: 'Gillian Flynn', publishedYear: 2012, genreId: mystery.id },
-    { title: 'The Girl with the Dragon Tattoo', author: 'Stieg Larsson', publishedYear: 2005, genreId: mystery.id },
-    { title: 'A Study in Scarlet', author: 'Arthur Conan Doyle', publishedYear: 1887, genreId: mystery.id },
+  const sampleBooks = [
+    // Fantasy (4)
+    { title: "The Hobbit", author: "J.R.R. Tolkien", genre: "Fantasy" },
+    { title: "Harry Potter", author: "J.K. Rowling", genre: "Fantasy" },
+    { title: "The Name of the Wind", author: "Patrick Rothfuss", genre: "Fantasy" },
+    { title: "Mistborn", author: "Brandon Sanderson", genre: "Fantasy" },
+    // Science Fiction (4)
+    { title: "Dune", author: "Frank Herbert", genre: "Science Fiction" },
+    { title: "Ender's Game", author: "Orson Scott Card", genre: "Science Fiction" },
+    { title: "Neuromancer", author: "William Gibson", genre: "Science Fiction" },
+    { title: "The Martian", author: "Andy Weir", genre: "Science Fiction" },
+    // Mystery (4)
+    { title: "The Big Sleep", author: "Raymond Chandler", genre: "Mystery" },
+    { title: "Gone Girl", author: "Gillian Flynn", genre: "Mystery" },
+    { title: "The Da Vinci Code", author: "Dan Brown", genre: "Mystery" },
+    { title: "The Girl with the Dragon Tattoo", author: "Stieg Larsson", genre: "Mystery" },
+    // Biography (4)
+    { title: "Educated", author: "Tara Westover", genre: "Biography" },
+    { title: "The Diary of a Young Girl", author: "Anne Frank", genre: "Biography" },
+    { title: "Steve Jobs", author: "Walter Isaacson", genre: "Biography" },
+    { title: "Becoming", author: "Michelle Obama", genre: "Biography" },
   ];
 
-  for (const book of booksData) {
-    await prisma.book.create({ data: book });
+  for (const book of sampleBooks) {
+    const genre = genres.find((g) => g.name === book.genre);
+    await prisma.book.create({
+      data: {
+        title: book.title,
+        author: book.author,
+        isbn: `978${Math.floor(1000000000 + Math.random() * 9000000000)}`,
+        description: `${book.title} by ${book.author}.`,
+        totalCopies: 3,
+        availableCopies: 3,
+        genreId: genre.id,
+      },
+    });
   }
-
-  console.log(`Successfully seeded ${booksData.length} books across 4 genres.`);
+  console.log("Database seeded successfully!");
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  .catch(console.error)
+  .finally(() => prisma.$disconnect());

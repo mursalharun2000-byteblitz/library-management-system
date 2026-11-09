@@ -1,7 +1,10 @@
 import { PrismaClient } from "@prisma/client";
+
 const prisma = new PrismaClient();
 
 async function main() {
+  console.log("Seeding database...");
+
   // Clear existing data to prevent unique constraint errors on re-seed
   await prisma.book.deleteMany();
   await prisma.genre.deleteMany();
@@ -15,6 +18,15 @@ async function main() {
       }),
     ),
   );
+
+  // Create a sample user
+  await prisma.user.create({
+    data: {
+      email: "librarian@library.com",
+      password: "securepassword123",
+      role: "LIBRARIAN",
+    },
+  });
 
   const sampleBooks = [
     // Fantasy (4)
@@ -53,9 +65,15 @@ async function main() {
       },
     });
   }
+
   console.log("Database seeded successfully!");
 }
 
 main()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect());
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

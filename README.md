@@ -12,10 +12,11 @@ A robust backend data schema and migration layer built for a library catalog usi
 
 ---
 
+# Library Management System - Backend
+
 ## Schema Decisions
 
-### Why Book References Genre Rather Than Embedding It
-In our data design, `Book` references a separate `Genre` table via a foreign key (`genreId`) rather than embedding the genre name directly as a string property inside the book record. 
+Book references Genre via a genreId foreign key rather than embedding the genre name directly, because many books share one genre and genres are managed independently (renaming a genre should not require updating every book). User stores a `role` field using a Role enum so Postgres and TypeScript both reject any value other than PATRON or LIBRARIAN. 
 
 * **Normalization & Data Integrity:** Embedding strings leads to duplicate data and risks data anomalies (e.g., typos like `"Science-Fiction"` vs `"Sci-Fi"`). Normalizing `Genre` into its own table ensures a single source of truth.
 * **Flexibility & Scalability:** If a genre needs to be renamed or assigned metadata (such as a description or age rating), it only requires an update in one place (`Genre` table) rather than updating thousands of individual book entries.
